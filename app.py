@@ -21,6 +21,10 @@ st.markdown("""
 # 2. 侧边栏：安全配置
 with st.sidebar:
     st.markdown("### ⚙️ 系统设置")
+    # 尝试从云端金库读取密码，如果读取不到，再显示输入框
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"]
+else:
     api_key = st.text_input("请输入你的 Gemini API Key", type="password")
     
     selected_model = None
