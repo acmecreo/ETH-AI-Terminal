@@ -8,24 +8,25 @@ import google.generativeai as genai
 # 1. 网页全局配置
 st.set_page_config(page_title="ETHUSDT 超短线共振终端", layout="wide", initial_sidebar_state="collapsed")
 
-# 💡 核心排版优化：保留主标题，并精细控制顶部间距
 st.markdown("""
     <style>
            .block-container {
-                padding-top: 2rem; /* 稍微增加一点点呼吸感，避免切头 */
+                padding-top: 2rem;
                 padding-bottom: 0rem;
             }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. 侧边栏：安全配置
+# 2. 侧边栏：安全配置 (结合 Secrets 自动读取)
 with st.sidebar:
     st.markdown("### ⚙️ 系统设置")
-    # 尝试从云端金库读取密码，如果读取不到，再显示输入框
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
-else:
-    api_key = st.text_input("请输入你的 Gemini API Key", type="password")
+    
+    # 💡 自动读取云端金库密码，若没有则显示输入框
+    if "GEMINI_API_KEY" in st.secrets:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        st.success("✅ 已自动连接云端 API 密钥")
+    else:
+        api_key = st.text_input("请输入你的 Gemini API Key", type="password")
     
     selected_model = None
     if api_key:
@@ -92,7 +93,6 @@ def generate_resonance_prompt(data):
     """
 
 # 5. UI 布局
-# 💡 把灵魂主标题加回来了！
 st.markdown("### 🤖 ETHUSDT 超短线多级别共振终端") 
 
 col_chart, col_ai = st.columns([3, 7])
@@ -121,7 +121,7 @@ with col_ai:
         if not api_key:
             st.error("⚠️ 请先在侧边栏填入 API Key！")
         elif not selected_model:
-            st.error("⚠️ 还未获取到可用模型列表。")
+            st.error("⚠️ 还未获取到可用模型列表。请稍等几秒或检查网络。")
         else:
             with st.spinner(f"正在进行多级别共振计算..."):
                 try:
