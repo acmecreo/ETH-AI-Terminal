@@ -4,27 +4,15 @@ import pandas as pd
 import pandas_ta_classic as ta
 import plotly.graph_objects as go
 import google.generativeai as genai
+import markdown # 💡 新增的库，用于生成完美排版
+import base64
 
 # 1. 网页全局配置
 st.set_page_config(page_title="ETHUSDT 超短线共振终端", layout="wide", initial_sidebar_state="collapsed")
 
-# 💡 核心排版与打印优化 CSS
 st.markdown("""
     <style>
-           .block-container {
-                padding-top: 2rem;
-                padding-bottom: 0rem;
-            }
-           /* 🖨️ 专为打印机（打包 PDF）准备的黑科技 */
-           @media print {
-               /* 打印时隐藏侧边栏、顶部栏和所有按钮 */
-               header, [data-testid="stSidebar"], button { display: none !important; }
-               /* 打印时隐藏左侧图表区，专心打印报告 */
-               [data-testid="column"]:nth-child(1) { display: none !important; }
-               /* 强制右侧报告区占满全屏宽度，并解除所有滚动条限制 */
-               [data-testid="column"]:nth-child(2) { width: 100% !important; max-width: 100% !important; flex: 100% !important; }
-               .stApp, .main, .block-container, div { overflow: visible !important; height: auto !important; }
-           }
+           .block-container { padding-top: 2rem; padding-bottom: 0rem; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -76,29 +64,61 @@ except Exception as e:
     st.error("数据拉取失败，请检查网络。")
     st.stop()
 
-# 4. 生成超级 Prompt (💡 报告内容史诗级升级)
+# 4. 生成超级 Prompt (💡 强制表格化输出支撑阻力)
 def generate_resonance_prompt(data):
     return f"""
-    作为一位顶级的加密货币【超短线（Scalping）】机构交易员，请基于以下 ETH/USDT 永续合约的三个时间级别实时快照，输出一份极具深度的实战交易报告：
+    作为一位顶级的加密货币【超短线（Scalping）】机构交易员，请基于以下 ETH/USDT 永续合约实时快照，输出深度实战报告：
     
-    【行情数据快照】
-    - 1小时级别：收盘价 ${data['1h']['close']:.2f} | RSI {data['1h']['RSI_14']:.2f} | MACD {data['1h']['MACD_12_26_9']:.2f} | 布林带 [{data['1h']['BBL_20_2.0']:.2f}, {data['1h']['BBU_20_2.0']:.2f}]
-    - 15分钟级别：收盘价 ${data['15m']['close']:.2f} | RSI {data['15m']['RSI_14']:.2f} | MACD {data['15m']['MACD_12_26_9']:.2f} | 布林带 [{data['15m']['BBL_20_2.0']:.2f}, {data['15m']['BBU_20_2.0']:.2f}]
-    - 5分钟级别：收盘价 ${data['5m']['close']:.2f} | RSI {data['5m']['RSI_14']:.2f} | MACD {data['5m']['MACD_12_26_9']:.2f} | 布林带 [{data['5m']['BBL_20_2.0']:.2f}, {data['5m']['BBU_20_2.0']:.2f}]
+    【行情快照】
+    - 1小时：收盘价 ${data['1h']['close']:.2f} | RSI {data['1h']['RSI_14']:.2f} | MACD {data['1h']['MACD_12_26_9']:.2f} | 布林带 [{data['1h']['BBL_20_2.0']:.2f}, {data['1h']['BBU_20_2.0']:.2f}]
+    - 15分钟：收盘价 ${data['15m']['close']:.2f} | RSI {data['15m']['RSI_14']:.2f} | MACD {data['15m']['MACD_12_26_9']:.2f} | 布林带 [{data['15m']['BBL_20_2.0']:.2f}, {data['15m']['BBU_20_2.0']:.2f}]
+    - 5分钟：收盘价 ${data['5m']['close']:.2f} | RSI {data['5m']['RSI_14']:.2f} | MACD {data['5m']['MACD_12_26_9']:.2f} | 布林带 [{data['5m']['BBL_20_2.0']:.2f}, {data['5m']['BBU_20_2.0']:.2f}]
     
-    【报告撰写要求（必须严格按以下结构输出，使用 Markdown，关键数字加粗）】
-    1. 🧭 核心趋势定调：一句话总结当前多空力量对比（例如：大级别震荡，小级别看跌共振）。
-    2. 🧱 关键支撑与阻力位（必须提供精确到小数点的价格）：
-       - 上方阻力位（R1, R2）及其判定理由（结合布林带或各项指标）。
-       - 下方支撑位（S1, S2）及其判定理由。
-    3. 🔬 动能与共振深度剖析：从 1H 到 5M 逐级拆解，指出 RSI 是否超买超卖、MACD 动能变化，以及各级别之间是否存在冲突。
-    4. ⚔️ 实战执行计划（预期持仓 5~120 分钟）：
-       - 操作倾向（做多 / 做空 / 观望等待）。
-       - 精确的【进场区间】。
-       - 严格的【止损价位】（要求极小止损，盈亏比至少 1:2）。
-       - 阶梯【止盈价位】（T1, T2）。
-    5. ⚠️ 风险提示：说明在何种意外极端行情下，此策略将立刻失效（例如跌破某关键点位）。
+    【必须严格按以下结构输出，使用 Markdown】：
+    1. 🧭 核心趋势定调：一句话极简总结多空力量。
+    2. 🧱 关键点位矩阵（必须严格使用 Markdown 表格，指出上方两档阻力与下方两档支撑，并说明理由）：
+       | 关键点位 | 价格 | 判定技术依据 | 攻防意义 |
+       | :--- | :--- | :--- | :--- |
+       | 阻力 R2 | $xxx.xx | ... | ... |
+       | 阻力 R1 | $xxx.xx | ... | ... |
+       | 当前价位 | ${data['5m']['close']:.2f} | 现价 | 观察突破方向 |
+       | 支撑 S1 | $xxx.xx | ... | ... |
+       | 支撑 S2 | $xxx.xx | ... | ... |
+    3. 🔬 多级别共振剖析：结合各级别 RSI 超买超卖与 MACD 动能，深度剖析当前是共振发力还是指标背离。
+    4. ⚔️ 实战操作预案（超短线持仓）：明确给出【操作方向】、【市价进场或挂单区间】、【精确止损价】和【阶梯止盈价】。内容要丰富、逻辑严密。
     """
+
+# 💡 生成完美打印页面的黑科技函数
+def create_print_button(md_text):
+    html_content = markdown.markdown(md_text, extensions=['tables'])
+    full_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>ETHUSDT 机构级深度研报</title>
+        <style>
+            body {{ font-family: 'Microsoft YaHei', -apple-system, sans-serif; line-height: 1.8; color: #1a1a1a; max-width: 850px; margin: 0 auto; padding: 40px; background-color: #fff; }}
+            h1, h2, h3 {{ color: #1E90FF; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 30px; }}
+            table {{ border-collapse: collapse; width: 100%; margin: 20px 0; font-size: 14px; }}
+            th, td {{ border: 1px solid #e0e0e0; padding: 12px 15px; text-align: left; }}
+            th {{ background-color: #f8f9fa; color: #333; font-weight: bold; }}
+            tr:nth-child(even) {{ background-color: #fcfcfc; }}
+            strong {{ color: #d93025; }} /* 重点数字标红 */
+            @media print {{ body {{ padding: 0; }} }}
+        </style>
+    </head>
+    <body onload="setTimeout(() => window.print(), 500)">
+        <h1 style="text-align: center;">🚀 ETH/USDT 超短线共振交易报告</h1>
+        <p style="text-align: center; color: #666;">生成时间：实时抓取</p>
+        <hr>
+        {html_content}
+    </body>
+    </html>
+    """
+    b64 = base64.b64encode(full_html.encode('utf-8')).decode()
+    return f'<a href="data:text/html;base64,{b64}" download="ETHUSDT_打印版报告.html" style="display: block; width: 100%; text-align: center; padding: 14px; background-color: #FF4B4B; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 20px;">🖨️ 下载独立打印版 (双击打开自动生成 PDF)</a>'
+
 
 # 5. UI 布局
 st.markdown("### 🤖 ETHUSDT 超短线多级别共振终端") 
@@ -109,7 +129,6 @@ with col_chart:
     st.markdown("#### 📊 5分钟快照") 
     current_price = df_5m.iloc[-1]['close']
     st.markdown(f"<div style='text-align: center; color: #1E90FF; font-size: 3.8rem; font-weight: 900; margin-bottom: -10px; font-family: Arial, sans-serif;'>{current_price:.2f}</div>", unsafe_allow_html=True)
-    
     fig = go.Figure(data=[go.Candlestick(x=df_5m['timestamp'], open=df_5m['open'], high=df_5m['high'], low=df_5m['low'], close=df_5m['close'], name='K线')])
     fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), xaxis_rangeslider_visible=False, height=350)
     st.plotly_chart(fig, use_container_width=True)
@@ -118,7 +137,6 @@ with col_chart:
 with col_ai:
     st.markdown("#### 🧠 深度共振研判") 
     
-    # 💡 状态保持：避免点击下载按钮时报告消失
     if 'report_text' not in st.session_state:
         st.session_state.report_text = ""
     
@@ -132,22 +150,15 @@ with col_ai:
                 try:
                     model = genai.GenerativeModel(selected_model)
                     response = model.generate_content(generate_resonance_prompt(multi_data))
-                    st.session_state.report_text = response.text # 存入缓存
+                    st.session_state.report_text = response.text 
                 except Exception as e:
                     st.error(f"调用失败，报错信息: {e}")
 
-    # 显示报告与下载按钮
+    # 显示报告与全新下载按钮
     if st.session_state.report_text:
         st.success("✅ 分析完成！")
         st.markdown("---")
         st.markdown(st.session_state.report_text)
-        st.markdown("---")
         
-        # 💡 新增的原生下载按钮
-        st.download_button(
-            label="💾 一键下载此报告 (.md)",
-            data=st.session_state.report_text,
-            file_name="ETHUSDT_超短线研报.md",
-            mime="text/markdown",
-            use_container_width=True
-        )
+        # 渲染黑科技打印按钮
+        st.markdown(create_print_button(st.session_state.report_text), unsafe_allow_html=True)
