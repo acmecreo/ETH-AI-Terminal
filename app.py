@@ -4,15 +4,40 @@ import pandas as pd
 import pandas_ta_classic as ta
 import plotly.graph_objects as go
 import google.generativeai as genai
-import markdown # 💡 新增的库，用于生成完美排版
+import markdown 
 import base64
 
 # 1. 网页全局配置
-st.set_page_config(page_title="ETHUSDT 超短线共振终端", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="ETHUSDT 机构级终端", layout="wide", initial_sidebar_state="collapsed")
 
+# 💡 核心排版、色彩定制与打印优化 CSS
 st.markdown("""
     <style>
-           .block-container { padding-top: 2rem; padding-bottom: 0rem; }
+           .block-container { padding-top: 2rem; padding-bottom: 2rem; }
+           
+           /* 定制左侧生成按钮为专业金融蓝 */
+           div.stButton > button {
+               background-color: #2E86C1 !important;
+               color: white !important;
+               border: none !important;
+               height: 52px !important;
+               font-size: 16px !important;
+               font-weight: bold !important;
+               border-radius: 8px !important;
+               margin-top: 10px !important;
+               box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+               transition: all 0.3s ease;
+           }
+           div.stButton > button:hover {
+               background-color: #1B4F72 !important;
+               box-shadow: 0 6px 8px rgba(0,0,0,0.15) !important;
+           }
+
+           /* 🖨️ 打印时隐藏所有控制区，只保留底部纯文本报告 */
+           @media print {
+               header, [data-testid="stSidebar"], [data-testid="column"] { display: none !important; }
+               .stApp, .main, .block-container, div { overflow: visible !important; height: auto !important; }
+           }
     </style>
     """, unsafe_allow_html=True)
 
@@ -64,7 +89,7 @@ except Exception as e:
     st.error("数据拉取失败，请检查网络。")
     st.stop()
 
-# 4. 生成超级 Prompt (💡 强制表格化输出支撑阻力)
+# 4. 核心提示词与黑科技按钮逻辑
 def generate_resonance_prompt(data):
     return f"""
     作为一位顶级的加密货币【超短线（Scalping）】机构交易员，请基于以下 ETH/USDT 永续合约实时快照，输出深度实战报告：
@@ -88,77 +113,93 @@ def generate_resonance_prompt(data):
     4. ⚔️ 实战操作预案（超短线持仓）：明确给出【操作方向】、【市价进场或挂单区间】、【精确止损价】和【阶梯止盈价】。内容要丰富、逻辑严密。
     """
 
-# 💡 生成完美打印页面的黑科技函数
-def create_print_button(md_text):
+def create_print_button(md_text, is_active):
+    # 如果还没有生成报告，显示灰色不可点击状态
+    if not is_active:
+        return '<div style="display: block; width: 100%; text-align: center; padding: 14px; background-color: #F2F3F4; color: #A6ACAF; border: 2px dashed #BDC3C7; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: not-allowed; box-sizing: border-box;">🖨️ 下载独立打印版 (请先生成策略)</div>'
+
+    # 生成报告后，激活为绿色按钮
     html_content = markdown.markdown(md_text, extensions=['tables'])
     full_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>ETHUSDT 机构级深度研报</title>
-        <style>
-            body {{ font-family: 'Microsoft YaHei', -apple-system, sans-serif; line-height: 1.8; color: #1a1a1a; max-width: 850px; margin: 0 auto; padding: 40px; background-color: #fff; }}
-            h1, h2, h3 {{ color: #1E90FF; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 30px; }}
-            table {{ border-collapse: collapse; width: 100%; margin: 20px 0; font-size: 14px; }}
-            th, td {{ border: 1px solid #e0e0e0; padding: 12px 15px; text-align: left; }}
-            th {{ background-color: #f8f9fa; color: #333; font-weight: bold; }}
-            tr:nth-child(even) {{ background-color: #fcfcfc; }}
-            strong {{ color: #d93025; }} /* 重点数字标红 */
-            @media print {{ body {{ padding: 0; }} }}
-        </style>
-    </head>
-    <body onload="setTimeout(() => window.print(), 500)">
-        <h1 style="text-align: center;">🚀 ETH/USDT 超短线共振交易报告</h1>
-        <p style="text-align: center; color: #666;">生成时间：实时抓取</p>
-        <hr>
-        {html_content}
-    </body>
-    </html>
+    <!DOCTYPE html><html><head><meta charset="utf-8"><title>ETHUSDT 机构级深度研报</title>
+    <style>
+        body {{ font-family: 'Microsoft YaHei', sans-serif; line-height: 1.8; color: #1a1a1a; max-width: 850px; margin: 0 auto; padding: 40px; }}
+        h1, h2, h3 {{ color: #1E90FF; border-bottom: 1px solid #eee; padding-bottom: 10px; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 20px 0; font-size: 14px; }}
+        th, td {{ border: 1px solid #e0e0e0; padding: 12px 15px; text-align: left; }}
+        th {{ background-color: #f8f9fa; }}
+        @media print {{ body {{ padding: 0; }} }}
+    </style></head><body onload="setTimeout(() => window.print(), 500)">
+    <h1 style="text-align: center;">🚀 ETH/USDT 超短线共振交易报告</h1><hr>{html_content}</body></html>
     """
     b64 = base64.b64encode(full_html.encode('utf-8')).decode()
-    return f'<a href="data:text/html;base64,{b64}" download="ETHUSDT_打印版报告.html" style="display: block; width: 100%; text-align: center; padding: 14px; background-color: #FF4B4B; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 20px;">🖨️ 下载独立打印版 (双击打开自动生成 PDF)</a>'
+    return f'<a href="data:text/html;base64,{b64}" download="ETHUSDT_打印版报告.html" style="display: block; width: 100%; text-align: center; padding: 16px; background-color: #27AE60; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box;">🖨️ 下载独立打印版 (双击打开生成 PDF)</a>'
 
 
-# 5. UI 布局
-st.markdown("### 🤖 ETHUSDT 超短线多级别共振终端") 
+# 5. UI 全新排版落地
+st.markdown("### 🤖 ETHUSDT 机构级超短线终端") 
 
-col_chart, col_ai = st.columns([3, 7])
+# 第一层：图表与数据矩阵
+col_chart, col_metrics = st.columns([7, 3])
 
 with col_chart:
     st.markdown("#### 📊 5分钟快照") 
     current_price = df_5m.iloc[-1]['close']
-    st.markdown(f"<div style='text-align: center; color: #1E90FF; font-size: 3.8rem; font-weight: 900; margin-bottom: -10px; font-family: Arial, sans-serif;'>{current_price:.2f}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='text-align: center; color: #1E90FF; font-size: 4rem; font-weight: 900; margin-bottom: -10px; font-family: Arial, sans-serif;'>{current_price:.2f}</div>", unsafe_allow_html=True)
     fig = go.Figure(data=[go.Candlestick(x=df_5m['timestamp'], open=df_5m['open'], high=df_5m['high'], low=df_5m['low'], close=df_5m['close'], name='K线')])
     fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), xaxis_rangeslider_visible=False, height=350)
     st.plotly_chart(fig, use_container_width=True)
-    st.caption(f"**1H RSI:** {multi_data['1h']['RSI_14']:.1f} | **15M RSI:** {multi_data['15m']['RSI_14']:.1f} | **5M RSI:** {multi_data['5m']['RSI_14']:.1f}")
 
-with col_ai:
-    st.markdown("#### 🧠 深度共振研判") 
+with col_metrics:
+    st.markdown("#### 🎛️ 实时动能矩阵") 
+    st.markdown("<br>", unsafe_allow_html=True) # 增加一点顶部间距
     
-    if 'report_text' not in st.session_state:
-        st.session_state.report_text = ""
+    # 提取核心数据
+    macd_1h = multi_data['1h']['MACD_12_26_9']
+    rsi_15m = multi_data['15m']['RSI_14']
+    bb_width_5m = multi_data['5m']['BBU_20_2.0'] - multi_data['5m']['BBL_20_2.0']
     
-    if st.button("🚀 综合 [1H+15M+5M] 数据生成策略", type="primary", use_container_width=True):
-        if not api_key:
-            st.error("⚠️ 请先在侧边栏填入 API Key！")
-        elif not selected_model:
-            st.error("⚠️ 正在连接模型，请稍候...")
-        else:
-            with st.spinner(f"正在进行机构级多维度计算..."):
-                try:
-                    model = genai.GenerativeModel(selected_model)
-                    response = model.generate_content(generate_resonance_prompt(multi_data))
-                    st.session_state.report_text = response.text 
-                except Exception as e:
-                    st.error(f"调用失败，报错信息: {e}")
+    # 判断情绪状态
+    trend_color, trend_text = ("🔴 空头控盘", "需警惕做多") if macd_1h < 0 else ("🟢 多头控盘", "回踩可接多")
+    rsi_state = "🔥 严重超买 (防回落)" if rsi_15m > 70 else "❄️ 严重超卖 (防反弹)" if rsi_15m < 30 else "⚡ 震荡区间 (待突破)"
+    
+    # 使用多彩色块丰富版面
+    st.info(f"**1H 宏观趋势：{trend_color}**\n\nMACD值: {macd_1h:.2f} | 策略: {trend_text}")
+    st.warning(f"**15M 波段情绪：{rsi_state}**\n\n当前 RSI: {rsi_15m:.2f}")
+    st.success(f"**5M 短线空间：${bb_width_5m:.2f}**\n\n布林带上下轨宽度，值越小说明面临变盘")
 
-    # 显示报告与全新下载按钮
-    if st.session_state.report_text:
-        st.success("✅ 分析完成！")
-        st.markdown("---")
-        st.markdown(st.session_state.report_text)
-        
-        # 渲染黑科技打印按钮
-        st.markdown(create_print_button(st.session_state.report_text), unsafe_allow_html=True)
+st.markdown("---")
+
+# 第二层：中控操作按钮
+if 'report_text' not in st.session_state:
+    st.session_state.report_text = ""
+
+col_btn_gen, col_btn_dl = st.columns(2)
+
+with col_btn_gen:
+    generate_clicked = st.button("🚀 综合 [1H+15M+5M] 数据生成策略", use_container_width=True)
+
+# 必须先处理生成逻辑，再渲染右侧的下载按钮，确保状态实时同步
+if generate_clicked:
+    if not api_key:
+        st.error("⚠️ 请先在侧边栏填入 API Key！")
+    elif not selected_model:
+        st.error("⚠️ 正在连接模型，请稍候...")
+    else:
+        with st.spinner(f"正在进行机构级多维度计算..."):
+            try:
+                model = genai.GenerativeModel(selected_model)
+                response = model.generate_content(generate_resonance_prompt(multi_data))
+                st.session_state.report_text = response.text 
+            except Exception as e:
+                st.error(f"调用失败，报错信息: {e}")
+
+with col_btn_dl:
+    has_report = bool(st.session_state.get('report_text'))
+    st.markdown(create_print_button(st.session_state.get('report_text', ''), has_report), unsafe_allow_html=True)
+
+# 第三层：底部全宽报告区
+if st.session_state.get('report_text'):
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("### 📜 深度共振研判报告")
+    st.markdown(st.session_state.report_text)
